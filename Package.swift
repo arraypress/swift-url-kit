@@ -11,6 +11,8 @@ let package = Package(
         .library(name: "URLStripper", targets: ["URLStripper"]),
         .library(name: "URLValidator", targets: ["URLValidator"]),
         .library(name: "URLCore", targets: ["URLCore"]),
+        // The one module that uses the network: follows shorteners and redirects.
+        .library(name: "URLExpander", targets: ["URLExpander"]),
     ],
     targets: [
         // Shared: host matching, URL parts, redirect wrappers, shortener hosts.
@@ -19,11 +21,14 @@ let package = Package(
         .target(name: "URLStripper", dependencies: ["URLCore"]),
         // Recognises platforms, extracts identifiers, reads link signals.
         .target(name: "URLValidator", dependencies: ["URLCore"]),
-        // Umbrella.
+        // Umbrella — offline modules only; URLExpander is imported explicitly.
         .target(name: "URLKit", dependencies: ["URLCore", "URLStripper", "URLValidator"]),
+        // Resolves where a link really goes. Network.
+        .target(name: "URLExpander", dependencies: ["URLCore"]),
 
         .testTarget(name: "URLCoreTests", dependencies: ["URLCore"]),
         .testTarget(name: "URLStripperTests", dependencies: ["URLStripper"]),
         .testTarget(name: "URLValidatorTests", dependencies: ["URLValidator"]),
+        .testTarget(name: "URLExpanderTests", dependencies: ["URLExpander"]),
     ]
 )

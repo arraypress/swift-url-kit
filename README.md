@@ -1,7 +1,8 @@
 # Swift URL Kit
 
-Understand a link, then clean it. Offline, Foundation only, on every Apple
-platform.
+Understand a link, then clean it — and, when you ask, follow it. Foundation
+only, on every Apple platform. Everything is offline except the one module
+that exists to make a request.
 
 ```swift
 import URLKit
@@ -24,10 +25,12 @@ Three modules, one repository:
 | **`URLStripper`** | Removes tracking parameters, unwraps redirect pages, canonicalises Amazon/eBay paths, drops share fragments | you clean links |
 | **`URLValidator`** | Recognises 450+ platforms, extracts identifiers from 100+ of them, reads link signals (shortened, phishing shapes), judges file type | you understand links |
 | **`URLCore`** | Host matching, URL parts, the redirect and shortener tables both of the above share | you build on the primitives |
-| `URLKit` | All three | you want one import |
+| **`URLExpander`** | Follows shorteners and redirects to the real destination, hop by hop. **The only module that touches the network.** | you resolve links |
+| `URLKit` | The three offline modules | you want one import |
 
 Each is its own product, so `import URLStripper` alone pulls in nothing about
-platforms. `URLCore` is re-exported by the other two.
+platforms. `URLCore` is re-exported by the other two. `URLExpander` is not in
+the umbrella: importing it is the explicit opt-in to network access.
 
 ## URLStripper
 
@@ -97,6 +100,25 @@ scripts in the typed host, non-standard port, `javascript:`/`data:` schemes,
 subdomain depth, unusual length. `concerns` lists the ones worth a pause, in
 words; being shortened is a fact, not a concern.
 
+## URLExpander
+
+```swift
+import URLExpander
+
+let e = try await URLExpander.expand("https://bit.ly/3abc")
+e.finalURL          // where it really goes
+e.hops              // each step: url, HTTP status, and how — "301", "302 (GET)", "offline: Google"
+e.finalStatus       // 200 for a page, 404 for a dead link
+```
+
+Redirects are followed **one hop at a time**, so every hop is reported and a
+wrapper met mid-chain — a Safe Link behind a bit.ly — is peeled offline rather
+than fetched. `HEAD` first; a host that refuses it gets a `GET` for the first
+byte only. Loops and chains past `maxHops` (default 10) are errors, not hangs.
+Only `http` and `https` are followed. `offlineOnly` peels wrappers and makes
+no request. Ephemeral session: no cookies, no cache. Tested against a stub
+server for every hop shape, plus one opt-in live test (`URLKIT_LIVE=1`).
+
 ## URLCore
 
 ```swift
@@ -133,8 +155,9 @@ history and in the section above.
 Sources/URLCore/        HostPattern  HostMatcher  URLParts  RedirectRule  Redirects  Shorteners
 Sources/URLStripper/    Core/ Enums/ Models/ Support/ Extensions/
 Sources/URLValidator/   Core/ Enums/ Models/ Protocols/ Support/Extractors/ Extensions/
-Sources/URLKit/         the umbrella
-Tests/                  URLCoreTests  URLStripperTests (48)  URLValidatorTests (105)
+Sources/URLExpander/    Expansion  URLExpander — the network module
+Sources/URLKit/         the umbrella (offline modules only)
+Tests/                  URLCoreTests (6)  URLStripperTests (48)  URLValidatorTests (105)  URLExpanderTests (12)
 ```
 
 ## License
