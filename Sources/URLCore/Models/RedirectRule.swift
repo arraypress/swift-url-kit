@@ -34,14 +34,23 @@ public struct RedirectRule: Sendable {
         case schemeless
     }
 
+    /// The hosts this wrapper is served from.
     public let hosts: [HostPattern]
     /// Only unwrap when the path starts with this. `nil` means any path.
     public let pathPrefix: String?
+    /// Where in the URL the destination sits.
     public let source: Source
+    /// How that destination is encoded.
     public let encoding: Encoding
     /// Shown in a report — "Google", "Outlook Safe Links".
     public let label: String
 
+    /// - Parameters:
+    ///   - hosts: The hosts this wrapper is served from.
+    ///   - pathPrefix: Only unwrap when the path starts with this.
+    ///   - source: Where the destination sits in the URL.
+    ///   - encoding: How it is encoded.
+    ///   - label: Shown in a report.
     public init(hosts: [HostPattern], pathPrefix: String? = nil, source: Source,
                 encoding: Encoding = .percent, label: String) {
         self.hosts = hosts

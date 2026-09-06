@@ -10,6 +10,10 @@
 
 import Foundation
 
+/// The shortener hosts this kit recognises.
+///
+/// Recognition only: a shortener keeps its destination server-side, so
+/// resolving one needs `URLExpander`.
 public enum Shorteners {
 
     /// Host → service name. Includes platform-owned shorteners (youtu.be,
@@ -37,6 +41,8 @@ public enum Shorteners {
         "linkvertise.com": "Linkvertise", "sub2unlock.com": "Sub2Unlock",
     ]
 
+    /// The service behind a host — "Bitly", "YouTube" — or nil if it is not
+    /// a shortener. Pass a host normalised by ``HostMatcher/normalise(_:)``.
     public static func service(for host: String) -> String? {
         if let s = hosts[host] { return s }
         // Shorteners are never subdomained except by their owner: still a shortener.

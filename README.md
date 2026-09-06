@@ -119,6 +119,29 @@ Only `http` and `https` are followed. `offlineOnly` peels wrappers and makes
 no request. Ephemeral session: no cookies, no cache. Tested against a stub
 server for every hop shape, plus one opt-in live test (`URLKIT_LIVE=1`).
 
+**Dead links.** `finalStatus` is what the destination itself answered, after
+the redirects, so a 404 behind three hops is reported as a 404.
+`destinationExists` is the same fact as a `Bool?`: `true` for 2xx, `false` for
+anything else the server said, and `nil` when nothing was asked — a host that
+never answered is unreachable, which is not the same as gone.
+
+**Batches.** Pass a list and each link is followed in its own slot, several at
+a time, results in the order given:
+
+```swift
+for result in await URLExpander.expand(links, options: .init(maxConcurrency: 8)) {
+    if let expansion = result.expansion {
+        print("✓ \(expansion.finalURL) — \(expansion.finalStatus ?? 0)")
+    } else {
+        print("✗ \(result.url): \(result.error?.localizedDescription ?? "")")
+    }
+}
+```
+
+One dead host becomes a `.failure` in its own slot and never aborts the list.
+All the links share one session, so a host that appears twice is connected to
+once. The batch entry point does not throw.
+
 ## URLCore
 
 ```swift

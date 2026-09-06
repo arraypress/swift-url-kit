@@ -10,24 +10,35 @@
 
 import Foundation
 
+/// A URL taken apart once.
+///
+/// Every extractor and signal reads these pieces rather than re-parsing, so
+/// they all agree on what the host and the segments are.
 public struct URLParts: Sendable {
+    /// The URL these parts came from, unchanged.
     public let url: URL
     /// Lowercased, without a leading `www.`.
     public let host: String
     /// The host exactly as given, lowercased — `www.` kept.
     public let rawHost: String
+    /// The path, as `URL` reports it — leading slash, not decoded further.
     public let path: String
     /// Path split on `/`, empty segments dropped.
     public let segments: [String]
     /// First value for each query name, percent-decoded. Names case-sensitive,
     /// as platforms treat them.
     public let query: [String: String]
+    /// The `#fragment`, if any.
     public let fragment: String?
+    /// An explicit port, if the URL carried one.
     public let port: Int?
+    /// The scheme, lowercased.
     public let scheme: String?
     /// `user` from `user:pass@host`, if any.
     public let user: String?
 
+    /// Takes a URL apart. Fails for anything without a host — `mailto:`, a
+    /// bare path, an empty string.
     public init?(_ url: URL) {
         guard let rawHost = url.host?.lowercased(), !rawHost.isEmpty else { return nil }
         self.url = url

@@ -17,6 +17,10 @@
 import Foundation
 import URLCore
 
+/// Follows a link to where it really goes.
+///
+/// Stateless: every call makes its own requests and shares nothing. The
+/// only module in the kit that touches the network.
 public enum URLExpander {
 
     /// Where a link goes, hop by hop.
@@ -87,6 +91,70 @@ public enum URLExpander {
                          finalURL: current.string ?? candidate, finalStatus: finalStatus)
     }
 
+    // MARK: - Batch
+
+    /// Where each of several links goes, followed a few at a time.
+    ///
+    /// One result per input, in the order given. A link that cannot be
+    /// followed becomes a `.failure` in its own slot rather than an error for
+    /// the whole list — one dead host must not cost the caller the answers for
+    /// every other link.
+    ///
+    /// All the links share one session, so connections to a host that appears
+    /// twice are reused.
+    ///
+    /// - Parameters:
+    ///   - inputs: The links to follow.
+    ///   - options: How far to follow, and how many at once.
+    ///   - session: For tests, or a caller with its own configuration.
+    /// - Returns: One ``ExpansionResult`` per input, in the original order.
+    public static func expand(_ inputs: [String],
+                              options: ExpandOptions = ExpandOptions(),
+                              session: URLSession? = nil) async -> [ExpansionResult] {
+        guard !inputs.isEmpty else { return [] }
+        let limit = max(1, options.maxConcurrency)
+        let session = session ?? URLExpander.makeSession(timeout: options.timeout)
+
+        return await withTaskGroup(of: (Int, ExpansionResult).self) { group in
+            var results = [ExpansionResult?](repeating: nil, count: inputs.count)
+            var next = 0
+
+            // Prime the group up to the limit, then refill as tasks finish — a
+            // sliding window, so a list of two hundred links does not open two
+            // hundred connections at once.
+            func addTask(_ index: Int) {
+                let input = inputs[index]
+                group.addTask {
+                    do {
+                        let expansion = try await expand(input, options: options, session: session)
+                        return (index, ExpansionResult(url: input, outcome: .success(expansion)))
+                    } catch let error as ExpandError {
+                        return (index, ExpansionResult(url: input, outcome: .failure(error)))
+                    } catch {
+                        return (index, ExpansionResult(url: input, outcome: .failure(.network(error.localizedDescription))))
+                    }
+                }
+            }
+
+            while next < min(limit, inputs.count) {
+                addTask(next)
+                next += 1
+            }
+
+            for await (index, result) in group {
+                results[index] = result
+                if next < inputs.count {
+                    addTask(next)
+                    next += 1
+                }
+            }
+
+            return results.compactMap { $0 }
+        }
+    }
+
+    // MARK: - Parsing
+
     /// The scheme a string starts with — `mailto`, `https` — or nil for none.
     /// RFC 3986: a letter, then letters, digits, `+`, `-` or `.`, then a colon.
     static func scheme(of string: String) -> String? {
@@ -130,15 +198,5 @@ public enum URLExpander {
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
         return URLSession(configuration: configuration)
-    }
-}
-
-/// Stops URLSession following redirects itself, so each hop comes back to us.
-final class RedirectStopper: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    func urlSession(_ session: URLSession, task: URLSessionTask,
-                    willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest,
-                    completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
-        completionHandler(nil)
     }
 }

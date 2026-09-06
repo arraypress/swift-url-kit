@@ -22,10 +22,15 @@ public enum TrackingParameters {
         TrackingCategory.allCases.reduce(into: Set<String>()) { $0.formUnion(GlobalParameters.exactNames(in: $1)) }
     }
 
+    /// Ad and analytics click identifiers — `gclid`, `fbclid`, `utm_*`.
     public static var analytics: Set<String> { GlobalParameters.exactNames(in: .analytics) }
+    /// Share attribution added by social apps.
     public static var social: Set<String> { GlobalParameters.exactNames(in: .social) }
+    /// Newsletter and mail-platform recipient identifiers.
     public static var email: Set<String> { GlobalParameters.exactNames(in: .email) }
+    /// Affiliate and storefront referral tags.
     public static var ecommerce: Set<String> { GlobalParameters.exactNames(in: .ecommerce) }
+    /// Tracking that fits none of the above.
     public static var other: Set<String> { GlobalParameters.exactNames(in: .other) }
 
     /// Name prefixes that are tracking anywhere — `utm_`, `mtm_`, `hsa_`.

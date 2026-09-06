@@ -11,8 +11,11 @@
 
 import Foundation
 
+/// The redirect wrappers this kit can peel, and the peeling itself.
 public enum Redirects {
 
+    /// Every wrapper that carries its destination in the URL. Order matters
+    /// only in that the first match wins; the patterns do not overlap.
     public static let rules: [RedirectRule] = [
         // Search engines and mail clients — where most pasted redirects come from
         RedirectRule(hosts: [.brand("google")], pathPrefix: "/url",

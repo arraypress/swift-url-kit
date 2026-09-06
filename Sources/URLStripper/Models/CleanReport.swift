@@ -10,34 +10,29 @@
 import Foundation
 import URLCore
 
-/// One parameter that was removed, and why.
-public struct RemovedParameter: Sendable, Codable, Hashable {
-    public let name: String
-    public let category: TrackingCategory?
-    /// "global" for parameters that are tracking anywhere; otherwise the
-    /// host rule that matched — "Amazon", "YouTube"; "custom" for a caller's
-    /// own list.
-    public let scope: String
-
-    public init(name: String, category: TrackingCategory?, scope: String) {
-        self.name = name
-        self.category = category
-        self.scope = scope
-    }
-}
-
 /// Everything a clean changed.
 public struct CleanReport: Sendable, Codable {
+    /// The link as it was given.
     public let original: String
+    /// The link with the tracking gone.
     public let cleaned: String
+    /// Every parameter removed, in the order they were found.
     public let removed: [RemovedParameter]
     /// The redirect services that were unwrapped, outermost first —
     /// `["Google", "Outlook Safe Links"]` for a Gmail link to a SafeLink.
     public let unwrapped: [String]
     /// Human-readable path changes, e.g. "removed /ref=sr_1_3", "canonicalised to /dp/B08N5WRWNW".
     public let pathChanges: [String]
+    /// Whether a tracking `#fragment` was dropped.
     public let fragmentRemoved: Bool
 
+    /// - Parameters:
+    ///   - original: The link as given.
+    ///   - cleaned: The link with the tracking gone.
+    ///   - removed: Every parameter removed.
+    ///   - unwrapped: Redirect services peeled, outermost first.
+    ///   - pathChanges: Human-readable path changes.
+    ///   - fragmentRemoved: Whether a tracking fragment was dropped.
     public init(original: String, cleaned: String, removed: [RemovedParameter] = [],
                 unwrapped: [String] = [], pathChanges: [String] = [], fragmentRemoved: Bool = false) {
         self.original = original

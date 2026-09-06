@@ -181,6 +181,58 @@ final class URLExpanderTests: XCTestCase {
         XCTAssertEqual(e.finalURL, "https://example.com/path")
     }
 
+    // MARK: - Batch
+
+    /// The point of the batch entry point: one dead host must not cost the
+    /// caller the answers for every other link in the list.
+    func testABadLinkInABatchIsItsOwnFailureAndTheRestStillResolve() async {
+        route("HEAD", "https://a.example/1", 200)
+        route("HEAD", "https://c.example/3", 301, location: "https://d.example/4")
+        route("HEAD", "https://d.example/4", 200)
+
+        let results = await URLExpander.expand(
+            ["https://a.example/1", "mailto:someone@example.com", "https://c.example/3"],
+            session: session)
+
+        XCTAssertEqual(results.count, 3)
+        XCTAssertEqual(results[0].expansion?.finalURL, "https://a.example/1")
+        XCTAssertEqual(results[1].error, .unsupportedScheme("mailto"))
+        XCTAssertNil(results[1].expansion)
+        XCTAssertEqual(results[2].expansion?.finalURL, "https://d.example/4")
+        XCTAssertEqual(results.filter(\.isSuccess).count, 2)
+    }
+
+    /// Results come back in the order the caller wrote them, whatever order
+    /// the hosts happened to answer in.
+    func testBatchResultsKeepTheInputOrder() async {
+        let urls = (0..<12).map { "https://h\($0).example/p" }
+        for url in urls { route("HEAD", url, 200) }
+        let results = await URLExpander.expand(urls, options: ExpandOptions(maxConcurrency: 4), session: session)
+        XCTAssertEqual(results.map(\.url), urls)
+        XCTAssertEqual(results.compactMap { $0.expansion?.finalURL }, urls)
+    }
+
+    func testAnEmptyBatchIsAnEmptyResultNotAnError() async {
+        let results = await URLExpander.expand([], session: session)
+        XCTAssertTrue(results.isEmpty)
+    }
+
+    /// A destination that answers 404 is a successful expansion of a dead
+    /// link — the request worked, the page is gone. `check` leans on this.
+    func testADeadDestinationIsAnExpansionNotAFailure() async throws {
+        route("HEAD", "https://gone.example/page", 404)
+        let e = try await URLExpander.expand("https://gone.example/page", session: session)
+        XCTAssertEqual(e.finalStatus, 404)
+        XCTAssertEqual(e.destinationExists, false)
+    }
+
+    func testOfflineOnlyLeavesTheDestinationUnknownRatherThanClaimingItLives() async throws {
+        let e = try await URLExpander.expand("https://gone.example/page",
+                                             options: ExpandOptions(offlineOnly: true), session: session)
+        XCTAssertNil(e.finalStatus)
+        XCTAssertNil(e.destinationExists)
+    }
+
     // MARK: - Live, opt in
 
     /// `URLKIT_LIVE=1 swift test --filter URLExpanderTests/testLive`

@@ -9,6 +9,8 @@
 
 import Foundation
 
+/// Pure host matching. Every rule table in the kit is matched through here,
+/// so "does this host count as Amazon" has exactly one answer.
 public enum HostMatcher {
 
     /// Lowercased, no `www.`, no trailing dot. `nil` for empty.
@@ -19,6 +21,7 @@ public enum HostMatcher {
         return h
     }
 
+    /// Whether a normalised host satisfies one pattern.
     public static func matches(_ host: String, _ pattern: HostPattern) -> Bool {
         switch pattern {
         case .exact(let e): return host == e
@@ -27,6 +30,7 @@ public enum HostMatcher {
         }
     }
 
+    /// Whether a normalised host satisfies any of the patterns.
     public static func matches(_ host: String, any patterns: [HostPattern]) -> Bool {
         patterns.contains { matches(host, $0) }
     }
